@@ -1,4 +1,6 @@
+
 # checkout-counter
+vue构建的移动端项目,付款
 
 > A Vue.js project
 
@@ -23,3 +25,5 @@ npm run unit
 # run all tests
 npm test
 ```
+# check-counter
+
