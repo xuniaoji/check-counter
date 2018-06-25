@@ -10,9 +10,9 @@
 
 <script>
 import Vue from 'vue'
-import { Field, CellGroup, Button, Loading, Popup, Toast } from 'vant'
+import { Field, CellGroup, Button, Loading, Popup, Toast, Dialog } from 'vant'
 
-const components = [Field, CellGroup, Button, Loading, Popup, Toast]
+const components = [Field, CellGroup, Button, Loading, Popup, Toast, Dialog]
 
 components.forEach(component => {
   Vue.use(component)

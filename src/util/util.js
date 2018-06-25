@@ -101,14 +101,14 @@ businessDatas['TranTeller'] = 'test'
 businessDatas['TranDate'] = mDate
 businessDatas['TranTime'] = mTime
 businessDatas['LocalLang'] = 'test'
-businessDatas['BranchId'] = 'Branch'
+businessDatas['BranchId'] = '801032'
 businessDatas['LegalRepCode'] = 'test'
 
 // store.commit('changeShow')
 Toast.allowMultiple()
 let toast1
 const Axios = axios.create({
-  baseURL: `http://192.168.1.75:8199/http-service-engine/callServiceByJson/`,
+  baseURL: `http://192.168.1.74:8199/http-service-engine/callServiceByJson/`,
   timeout: 15000,
   responseType: 'json',
   headers: {
@@ -139,21 +139,17 @@ Axios.interceptors.response.use(
   response => {
     console.log(response)
     const resp = response.data.Service
-    if (resp.Header.RetCode === '000000' && 'cardPartyName' in resp.Body) {
-      return resp.Body
-    } else if (
-      resp.Header.RetCode === '000000' &&
-      !('cardPartyName' in resp.Body)
-    ) {
-      Toast.fail('未查到数据,请确认银行卡号')
+    toast1.clear()
+    if (resp.Header.RetCode === '000000') {
       return resp.Body
     } else {
-      Toast.fail('获取数据失败,请重试')
+      Toast.fail(resp.Header.RetMsg)
       Promise.reject(resp.Header.RetMsg)
     }
   },
   errorResp => {
     toast1.clear()
+    Toast.fail('网络超时,请重试')
     Promise.reject(errorResp)
   }
 )

@@ -1,17 +1,14 @@
 <template>
   <div>
-    <h3 class="title">付款</h3>
+    <h3 class="title">收款人信息</h3>
     <van-cell-group>
-      <van-field v-model.trim="cardNumber" label="银行卡卡号：" icon="clear" placeholder="请输入卡号" required @click-icon="cardNumber = ''" autofocus @change="getBankName" />
-
+      <!-- <van-field v-model.trim="moneyPay" label="支付金额：" icon="clear" placeholder="请输入支付金额" required @click-icon="moneyPay = ''" autofocus /> -->
+      <van-field v-model.trim="receiveCardNum" type="text" icon="clear" required @click-icon="receiveCardNum = ''" @change="getBankName" label="收款人卡号：" placeholder="请输入卡号" />
+      <van-field v-model.trim="accountName" type="text" icon="clear" required @click-icon="accountName=''" label="账户名：" placeholder="请输入账户名" />
       <van-field v-model="bankName" type="text" label="开卡行行名：" placeholder="请输入卡号" readonly />
       <van-field v-model="cardType" type="text" label="卡类型：" placeholder="请输入卡号" readonly />
     </van-cell-group>
-    <van-button size="large" @click="goNext()" :disabled="isDisabled">下一步</van-button>
-    <van-popup v-model="show" :close-on-click-overlay="false">
-      <van-loading color="white" size="40px" background-color="rgba(0,0,0,.7)" />
-    </van-popup>
-
+    <van-button size="large" @click="goNext()">确认签约</van-button>
   </div>
 </template>
 
@@ -21,40 +18,51 @@ import { Toast } from 'vant'
 export default {
   data: function() {
     return {
-      cardNumber: '',
+      // moneyPay: '',
+      receiveCardNum: '',
+      accountName: '',
       bankName: '',
-      cardType: '',
-      isDisabled: true
+      cardType: ''
       // show: false
     }
   },
   methods: {
     async getBankName() {
-      if (/^([1-9]{1})(\d{12,19})$/.test(this.cardNumber)) {
-        // const response = await httpService('QueryCardPartyInfo', {
+      if (/^([1-9]{1})(\d{12,19})$/.test(this.receiveCardNum)) {
         const response = await this.$http.post('QueryCardPartyInfo', {
-          cardCode: this.cardNumber
+          cardCode: this.receiveCardNum
         })
         console.log(response)
-        /** TODO cardType需要转译 */
         if ('cardPartyName' in response) {
           this.bankName = response.cardPartyName
           this.cardType = response.cardType
-          this.isDisabled = false
         } else {
           Toast.fail('未查到数据,请确认银行卡号')
-          this.isDisabled = true
           this.bankName = ''
           this.cardType = ''
         }
       } else {
         Toast.fail('请输入13-20位数字')
-        this.isDisabled = true
       }
     },
     async goNext() {
-      const response = await this.$http.post('QueryAgreementSummary', {
-        PayerAccount: this.cardNumber
+      const response = await this.$http.post('ProcessBilateralPayment', {
+        ProductId: 'GC0000002',
+        BusinessType: 'X106',
+        AgreementType: '8',
+        AgreementContent: '111111111111',
+        Amount: '1',
+        CurrencyUomId: '156',
+        PayerPaymentInfo: {
+          PaymentMethodType: 'GOLD_PAY_KJ',
+          AccountNumber: '6229124904140335',
+          AccountName: '送达'
+        },
+        PayeePaymentInfo: {
+          PaymentMethodType: 'DEBIT_CARD',
+          AccountNumber: '623667490414033560',
+          AccountName: '送达'
+        }
       })
       console.log(response)
       if (response.ResultList.length !== 0) {
@@ -99,8 +107,3 @@ export default {
   }
 }
 </script>
-
-<style lang="less" scoped>
-</style>
-
-
