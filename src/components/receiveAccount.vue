@@ -2,108 +2,118 @@
   <div>
     <h3 class="title">收款人信息</h3>
     <van-cell-group>
-      <!-- <van-field v-model.trim="moneyPay" label="支付金额：" icon="clear" placeholder="请输入支付金额" required @click-icon="moneyPay = ''" autofocus /> -->
-      <van-field v-model.trim="receiveCardNum" type="text" icon="clear" required @click-icon="receiveCardNum = ''" @change="getBankName" label="收款人卡号：" placeholder="请输入卡号" />
-      <van-field v-model.trim="accountName" type="text" icon="clear" required @click-icon="accountName=''" label="账户名：" placeholder="请输入账户名" />
-      <van-field v-model="bankName" type="text" label="开卡行行名：" placeholder="请输入卡号" readonly />
-      <van-field v-model="cardType" type="text" label="卡类型：" placeholder="请输入卡号" readonly />
+      <van-field v-model.trim="receiveCardNumber" type="text" icon="clear" required @click-icon="receiveCardNumber = ''" @change="getBankName" label="收款人卡号：" placeholder="请输入银行卡号"  />
+      <div class="error" v-if="$v.receiveCardNumber.$error">请输入13-20位数字</div>
+      <van-field v-model.trim="receiveAccountName" type="text" icon="clear" required @click-icon="receiveAccountName=''" label="账户名：" placeholder="请输入账户名"  @input="$v.receiveAccountName.$touch()" />
+      <div class="error" v-if="$v.receiveAccountName.$error">非法字符:~#$%^&~#￥%&
+        <>"{}</div>
+      <van-field v-model="receiveBankName" type="text" label="开卡行行名：" placeholder="请输入卡号" readonly />
+      <van-field v-model="receiveCardType" type="text" label="卡类型：" placeholder="请输入卡号" readonly />
     </van-cell-group>
-    <van-button size="large" @click="goNext()">确认签约</van-button>
+    <van-button size="large" :disabled="$v.$invalid" @click="goNext()">下一步</van-button>
   </div>
 </template>
 
 <script>
 import { Toast } from 'vant'
+import { required } from 'vuelidate/lib/validators'
+import {
+  bankCardValidator,
+  specialCharactersValidator
+} from '../util/validators.js'
 
 export default {
   data: function() {
     return {
-      // moneyPay: '',
-      receiveCardNum: '',
-      accountName: '',
-      bankName: '',
-      cardType: ''
+      receiveCardNumber: '',
+      receiveAccountName: '',
+      receiveBankName: '',
+      receiveCardType: ''
       // show: false
     }
   },
+  validations: {
+    receiveCardNumber: { bankCardValidator },
+    receiveAccountName: { specialCharactersValidator, required },
+    receiveBankName: { required }
+  },
   methods: {
     async getBankName() {
-      if (/^([1-9]{1})(\d{12,19})$/.test(this.receiveCardNum)) {
+      this.$v.receiveCardNumber.$touch()
+      if (!this.$v.receiveCardNumber.$invalid) {
         const response = await this.$http.post('QueryCardPartyInfo', {
-          cardCode: this.receiveCardNum
+          cardCode: this.receiveCardNumber
         })
         console.log(response)
         if ('cardPartyName' in response) {
-          this.bankName = response.cardPartyName
-          this.cardType = response.cardType
+          this.receiveBankName = response.cardPartyName
+          this.receiveCardType = response.cardType
         } else {
           Toast.fail('未查到数据,请确认银行卡号')
-          this.bankName = ''
-          this.cardType = ''
+          this.receiveBankName = ''
+          this.receiveCardType = ''
         }
-      } else {
-        Toast.fail('请输入13-20位数字')
       }
     },
     async goNext() {
-      const response = await this.$http.post('ProcessBilateralPayment', {
-        ProductId: 'GC0000002',
-        BusinessType: 'X106',
-        AgreementType: '8',
-        AgreementContent: '111111111111',
-        Amount: '1',
-        CurrencyUomId: '156',
-        PayerPaymentInfo: {
-          PaymentMethodType: 'GOLD_PAY_KJ',
-          AccountNumber: '6229124904140335',
-          AccountName: '送达'
-        },
-        PayeePaymentInfo: {
-          PaymentMethodType: 'DEBIT_CARD',
-          AccountNumber: '623667490414033560',
-          AccountName: '送达'
-        }
-      })
-      console.log(response)
-      if (response.ResultList.length !== 0) {
+      if (this.receiveBankName.indexOf('新疆银行') >= 0) {
+        this.$router.push({
+          path: 'payment',
+          query: {
+            payCardNumber: this.$route.query.payCardNumber,
+            payName: this.$route.query.payName,
+            payCardType: this.$route.query.payCardType,
+            receiveCardNumber: this.receiveCardNumber,
+            receiveName: this.receiveAccountName,
+            receiveBankName: this.receiveBankName,
+            receiveCardType: this.receiveCardType
+          }
+        })
       } else {
-        this.$dialog
-          .confirm({
-            message: '您未进行签约，请先签约',
-            confirmButtonText: '签约'
-          })
-          .then(() => {
-            // on confirm
-            this.$router.push({
-              path: 'accountEdit',
-              query: {
-                cardNumber: this.cardNumber,
-                bankName: this.bankName,
-                cardType: this.cardType
-              }
+        const response = await this.$http.post('SigningAgreement', {
+          AgreementType: 'M141',
+          InstructingParty: '623667490414033560',
+          InstructedParty: '送达',
+          PayerAccountNumber: this.$route.query.payCardNumber,
+          PayerAccountName: this.$route.query.payName,
+          PayerAccountType: this.$route.query.payCardType,
+          /** TODO PayerCertType类型不明确 */
+          PayerCertType: '110001',
+          PayerCertNo: this.$route.query.payIDcard,
+          PayerTel: this.$route.query.payMobileNum,
+          CreditorAccount: this.receiveCardNumber,
+          CreditorName: this.receiveAccountName,
+          CreditorDepositName: this.receiveBankName,
+          CreditorAccountType: this.receiveCardType
+        })
+        console.log(response)
+        if (response) {
+          this.$dialog
+            .confirm({
+              message: '签约成功，请确认支付',
+              confirmButtonText: '支付'
             })
-          })
-          .catch(() => {
-            // on cancel
-          })
+            .then(() => {
+              // on confirm
+              this.$router.push({
+                path: 'payment',
+                query: {
+                  payCardNumber: this.$route.query.payCardNumber,
+                  payName: this.$route.query.payName,
+                  payCardType: this.$route.query.payCardType,
+                  receiveCardNumber: this.receiveCardNumber,
+                  receiveName: this.receiveAccountName,
+                  receiveBankName: this.receiveBankName,
+                  receiveCardType: this.receiveCardType
+                }
+              })
+            })
+            .catch(() => {
+              // on cancel
+            })
+        }
       }
     }
-  },
-  computed: {
-    show: {
-      set: function(params) {
-        return this.$store.state.isShow
-      },
-      get: function(params) {
-        return this.$store.state.isShow
-      }
-    }
-  },
-  mounted: function() {
-    console.log(111)
-    this.$on('closeLoading', function(msg) {
-      alert(12233)
-    })
   }
 }
 </script>

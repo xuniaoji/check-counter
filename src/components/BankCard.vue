@@ -2,100 +2,158 @@
   <div>
     <h3 class="title">付款</h3>
     <van-cell-group>
-      <van-field v-model.trim="cardNumber" label="银行卡卡号：" icon="clear" placeholder="请输入卡号" required @click-icon="cardNumber = ''" autofocus @change="getBankName" />
-
-      <van-field v-model="bankName" type="text" label="开卡行行名：" placeholder="请输入卡号" readonly />
-      <van-field v-model="cardType" type="text" label="卡类型：" placeholder="请输入卡号" readonly />
+      <van-field v-model.trim="payCardNumber" label="银行卡卡号：" icon="clear" placeholder="请输入卡号" required @click-icon="payCardNumber = ''" @change="getBankName" />
+      <div class="error" v-if="$v.payCardNumber.$error">请输入13-20位数字</div>
+      <van-field v-model.trim="payName" label="账户名：" icon="clear" placeholder="请输入账户名" required @click-icon="payName = ''" @input="$v.payName.$touch()" />
+      <div class="error" v-if="$v.payName.$error">非法字符:~#$%^&~#￥%&
+        <>"{}</div>
+      <van-field v-model="payBankName" type="text" label="开卡行行名：" placeholder="请输入银行卡号" readonly />
+      <van-field v-model="payCardType" type="text" label="卡类型：" placeholder="请输入银行卡号" readonly />
     </van-cell-group>
-    <van-button size="large" @click="goNext()" :disabled="isDisabled">下一步</van-button>
-    <van-popup v-model="show" :close-on-click-overlay="false">
-      <van-loading color="white" size="40px" background-color="rgba(0,0,0,.7)" />
-    </van-popup>
+    <van-button size="large" @click="goNext()" :disabled="$v.$invalid">下一步</van-button>
 
   </div>
 </template>
 
 <script>
 import { Toast } from 'vant'
+import { required } from 'vuelidate/lib/validators'
+import {
+  bankCardValidator,
+  specialCharactersValidator
+} from '../util/validators.js'
 
 export default {
   data: function() {
     return {
-      cardNumber: '',
-      bankName: '',
-      cardType: '',
-      isDisabled: true
+      payCardNumber: '',
+      payName: '',
+      payBankName: '',
+      payCardType: '',
+      // isDisabled: true,
+      cardInfo: ''
       // show: false
     }
   },
+  validations: {
+    payCardNumber: { bankCardValidator },
+    payName: { specialCharactersValidator, required },
+    payBankName: { required }
+  },
   methods: {
     async getBankName() {
-      if (/^([1-9]{1})(\d{12,19})$/.test(this.cardNumber)) {
-        // const response = await httpService('QueryCardPartyInfo', {
-        const response = await this.$http.post('QueryCardPartyInfo', {
-          cardCode: this.cardNumber
+      console.log(this.$v.payCardNumber)
+      this.$v.payCardNumber.$touch()
+      if (!this.$v.payCardNumber.$invalid) {
+        this.cardInfo = await this.$http.post('QueryCardPartyInfo', {
+          cardCode: this.payCardNumber
         })
-        console.log(response)
         /** TODO cardType需要转译 */
-        if ('cardPartyName' in response) {
-          this.bankName = response.cardPartyName
-          this.cardType = response.cardType
-          this.isDisabled = false
+        if (this.cardInfo && this.cardInfo.cardPartyName) {
+          this.payBankName = this.cardInfo.cardPartyName
+          this.payCardType = this.cardInfo.cardType
+          // this.isDisabled = this.$v.payName.$invalid
         } else {
           Toast.fail('未查到数据,请确认银行卡号')
-          this.isDisabled = true
-          this.bankName = ''
-          this.cardType = ''
+          // this.isDisabled = true
+          this.payBankName = ''
+          this.payCardType = ''
         }
-      } else {
+      } /* else {
         Toast.fail('请输入13-20位数字')
-        this.isDisabled = true
-      }
+        // this.isDisabled = true
+      } */
     },
     async goNext() {
-      const response = await this.$http.post('QueryAgreementSummary', {
-        PayerAccount: this.cardNumber
-      })
-      console.log(response)
-      if (response.ResultList.length !== 0) {
-      } else {
-        this.$dialog
+      console.log(this.cardInfo)
+      if (this.cardInfo.cardPartyName.indexOf('新疆银行') >= 0) {
+        /* this.$dialog
           .confirm({
-            message: '您未进行签约，请先签约',
-            confirmButtonText: '签约'
+            message: '请确认支付',
+            confirmButtonText: '支付'
           })
           .then(() => {
             // on confirm
             this.$router.push({
-              path: 'accountEdit',
+              path: 'payment',
               query: {
-                cardNumber: this.cardNumber,
-                bankName: this.bankName,
-                cardType: this.cardType
+                payCardNumber: this.payCardNumber,
+                payName: this.payName,
+                payCardType: this.payCardType
               }
             })
           })
           .catch(() => {
             // on cancel
+          }) */
+
+        this.$router.push({
+          path: 'accountEdit',
+          query: {
+            payCardNumber: this.payCardNumber,
+            payName: this.payName,
+            payBankName: this.payBankName,
+            payCardType: this.payCardType
+          }
+        })
+      } else {
+        const response = await this.$http.post('QueryAgreementSummary', {
+          PayerAccount: this.payCardNumber
+        })
+        console.log(response)
+        if (response.ResultList.length) {
+          const responseData = response.ResultList[0]
+          const response1 = await this.$http.post('QueryCardPartyInfo', {
+            cardCode: responseData.CreditorAccount
           })
+
+          if (response1) {
+            this.$dialog
+              .confirm({
+                message: '您已签约，请确认支付信息',
+                confirmButtonText: '支付'
+              })
+              .then(() => {
+                // on confirm
+                this.$router.push({
+                  path: 'payment',
+                  query: {
+                    payCardNumber: responseData.PayerAccountNumber,
+                    payName: responseData.PayerAccountName,
+                    receiveCardNumber: responseData.CreditorAccount,
+                    receiveName: responseData.CreditorName,
+                    receiveBankName: responseData.CreditorDepositName,
+                    receiveCardType: response1.payCardType
+                  }
+                })
+              })
+              .catch(() => {
+                // on cancel
+              })
+          }
+        } else {
+          this.$dialog
+            .confirm({
+              message: '您未进行签约，请先签约',
+              confirmButtonText: '签约'
+            })
+            .then(() => {
+              // on confirm
+              this.$router.push({
+                path: 'accountEdit',
+                query: {
+                  payCardNumber: this.payCardNumber,
+                  payBankName: this.payBankName,
+                  payCardType: this.payCardType
+                }
+              })
+            })
+            .catch(() => {
+              // on cancel
+            })
+        }
       }
     }
-  },
-  computed: {
-    show: {
-      set: function(params) {
-        return this.$store.state.isShow
-      },
-      get: function(params) {
-        return this.$store.state.isShow
-      }
-    }
-  },
-  mounted: function() {
-    console.log(111)
-    this.$on('closeLoading', function(msg) {
-      alert(12233)
-    })
   }
 }
 </script>

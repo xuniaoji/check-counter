@@ -1,7 +1,8 @@
 import VueRouter from 'vue-router'
-import BankCard from './components/BankCard.vue'
-import AccountEdit from './components/AccountEdit.vue'
+import BankCard from './components/bankCard.vue'
+import AccountEdit from './components/accountEdit.vue'
 import ReceiveAccount from './components/receiveAccount.vue'
+import Payment from './components/payment.vue'
 
 export const router = new VueRouter({
   mode: 'history',
@@ -21,6 +22,10 @@ export const router = new VueRouter({
     {
       path: '/receiveAccount',
       component: ReceiveAccount
+    },
+    {
+      path: '/payment',
+      component: Payment
     }
   ]
 })
