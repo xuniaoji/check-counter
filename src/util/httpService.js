@@ -95,7 +95,7 @@ businessDatas['TranCode'] = '888000' // 交易码 N
 businessDatas['Channel'] = '01'
 businessDatas['TranTeller'] = 'test'
 businessDatas['LocalLang'] = 'test'
-businessDatas['BranchId'] = '801032'
+businessDatas['BranchId'] = '801101'
 businessDatas['LegalRepCode'] = 'test'
 Toast.allowMultiple()
 let toast1
