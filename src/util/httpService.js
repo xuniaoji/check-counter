@@ -82,34 +82,26 @@ const httpService = (
 export { httpService } */
 
 import axios from 'axios'
+import dayjs from 'dayjs'
 // import store from '../store/store'
 import { Toast } from 'vant'
-
-const now = new Date()
-const mDate = `${now.getFullYear()}${now.getMonth() + 1}${now.getDate()}`
-const mTime = '11111aa'
+// store.commit('changeShow')
 const businessDatas = {}
 businessDatas['SourceSysId'] = 'test'
 businessDatas['ConsumerId'] = 'C08'
 businessDatas['ServiceCode'] = 'test'
 businessDatas['ServiceName'] = 'test'
 businessDatas['TranCode'] = '888000' // 交易码 N
-businessDatas['GlobalSeq'] = '85C08' + mDate + mTime
-businessDatas['TranSeq'] = 'C08'
 businessDatas['Channel'] = '01'
 businessDatas['TranTeller'] = 'test'
-businessDatas['TranDate'] = mDate
-businessDatas['TranTime'] = mTime
 businessDatas['LocalLang'] = 'test'
-businessDatas['BranchId'] = 'Branch'
+businessDatas['BranchId'] = '801101'
 businessDatas['LegalRepCode'] = 'test'
-
-// store.commit('changeShow')
 Toast.allowMultiple()
 let toast1
 const Axios = axios.create({
-  baseURL: `http://192.168.1.75:8199/http-service-engine/callServiceByJson/`,
-  timeout: 15000,
+  baseURL: `http://192.168.1.74:8199/http-service-engine/callServiceByJson/`,
+  timeout: 30000,
   responseType: 'json',
   headers: {
     'Content-type': 'application/json;charset=utf-8'
@@ -118,6 +110,13 @@ const Axios = axios.create({
 
 Axios.interceptors.request.use(
   config => {
+    const mDate = dayjs().format('YYYYMMDD')
+    const mTime = dayjs().format('HHmmssSSS')
+    businessDatas['GlobalSeq'] = '85C08' + mDate + mTime
+    businessDatas['TranSeq'] = 'C08' + mDate + mTime
+    businessDatas['TranDate'] = mDate
+    businessDatas['TranTime'] = mTime
+
     config.data = {
       Service: { Body: config.data, Header: Object.assign({}, businessDatas) }
     }
@@ -139,21 +138,17 @@ Axios.interceptors.response.use(
   response => {
     console.log(response)
     const resp = response.data.Service
-    if (resp.Header.RetCode === '000000' && 'cardPartyName' in resp.Body) {
-      return resp.Body
-    } else if (
-      resp.Header.RetCode === '000000' &&
-      !('cardPartyName' in resp.Body)
-    ) {
-      Toast.fail('未查到数据,请确认银行卡号')
+    toast1.clear()
+    if (resp.Header.RetCode === '000000') {
       return resp.Body
     } else {
-      Toast.fail('获取数据失败,请重试')
+      Toast.fail(resp.Header.RetMsg)
       Promise.reject(resp.Header.RetMsg)
     }
   },
   errorResp => {
     toast1.clear()
+    Toast.fail('网络错误,请检查')
     Promise.reject(errorResp)
   }
 )

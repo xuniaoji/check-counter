@@ -2,13 +2,15 @@ import Vue from 'vue'
 import App from './App.vue'
 import VueRouter from 'vue-router'
 import store from './store/store'
-import './CSS reset.less'
-import { router } from './routing'
-import Axios from './util/util'
+import './style/CSSReset.less'
+import './style/commonStyle.less'
+import { router } from './router/router'
+import Axios from './util/httpService'
+import Vuelidate from 'vuelidate'
 
-console.log(Axios)
 Vue.prototype.$http = Axios
 Vue.use(VueRouter)
+Vue.use(Vuelidate)
 
 new Vue({
   router,
